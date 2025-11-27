@@ -1,3 +1,3 @@
 rootProject.name = "PackageInstallerSample"
 
-include("app")
+include("app", "foo")

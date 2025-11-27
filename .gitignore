@@ -1,5 +1,6 @@
 /*
 !/app
+!/foo
 !.gitignore
 !build.gradle.kts
 !gradle.properties
