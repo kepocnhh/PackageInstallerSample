@@ -12,7 +12,7 @@ plugins {
 
 android {
     namespace = "org.kepocnhh.pinstaller"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = namespace
