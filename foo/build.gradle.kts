@@ -18,7 +18,7 @@ android {
         applicationId = namespace
         minSdk = 24
         targetSdk = compileSdk
-        versionCode = 1
+        versionCode = 2
         versionName = "0.0.$versionCode"
     }
 
