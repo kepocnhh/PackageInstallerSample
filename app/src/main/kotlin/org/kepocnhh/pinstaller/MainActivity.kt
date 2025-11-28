@@ -10,6 +10,7 @@ import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
@@ -27,15 +28,20 @@ internal class MainActivity : ComponentActivity() {
     private fun install(context: Context, packageName: String, version: String) {
         val dm = context.getSystemService(DevicePolicyManager::class.java)
         val isDeviceOwnerApp = dm.isDeviceOwnerApp(context.packageName)
-        if (!isDeviceOwnerApp) TODO()
+        if (!isDeviceOwnerApp) TODO("device owner error")
         val pm = context.packageManager
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            if (!pm.canRequestPackageInstalls()) TODO("the calling package is untrusted by the user to request install packages on the device")
+//        } else {
+//            val result = Settings.Secure.getInt(context.contentResolver, Settings.Secure.INSTALL_NON_MARKET_APPS, 0)
+//            if (result == 0) TODO("do not allow use of the package installer")
+//        }
         val pi = pm.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         params.setAppPackageName(packageName)
         val sessionId = pi.createSession(params)
         val session = pi.openSession(sessionId)
         val offsetBytes = 0L
-//        val version = "0.0.1-debug-1"
         val name = "Foo-${version}.apk"
         val lengthBytes = -1L // unknown
         session.openWrite("foo", offsetBytes, lengthBytes).use { dst ->
@@ -57,6 +63,22 @@ internal class MainActivity : ComponentActivity() {
             PendingIntent.FLAG_IMMUTABLE,
         ).intentSender
         session.commit(sender)
+    }
+
+    private fun uninstall(context: Context, packageName: String) {
+        val dm = context.getSystemService(DevicePolicyManager::class.java)
+        val isDeviceOwnerApp = dm.isDeviceOwnerApp(context.packageName)
+        if (!isDeviceOwnerApp) TODO("device owner error")
+        val pm = context.packageManager
+        val pi = pm.packageInstaller
+        val intent = Intent("org.kepocnhh.pinstaller.ACTION_UNINSTALL_COMPLETE")
+        val sender = PendingIntent.getBroadcast(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE,
+        ).intentSender
+        pi.uninstall(packageName, sender)
     }
 
     private fun render(root: LinearLayout) {
@@ -149,6 +171,33 @@ internal class MainActivity : ComponentActivity() {
                 root.addView(view)
             }
         }
+        if (info != null && isDeviceOwnerApp && info.versionCode > 1) {
+            Button(context).also { view ->
+                view.layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                )
+                view.text = "uninstall $packageName"
+                view.setOnClickListener { _ ->
+                    lifecycleScope.launch {
+                        withContext(injection.contexts.default) {
+                            runCatching {
+                                uninstall(context = context, packageName = packageName)
+                            }
+                        }.fold(
+                            onSuccess = {
+                                logger.debug("uninstall $packageName")
+                                render(root = root)
+                            },
+                            onFailure = { error ->
+                                logger.warning("uninstall $packageName error: $error")
+                            },
+                        )
+                    }
+                }
+                root.addView(view)
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -167,16 +216,15 @@ internal class MainActivity : ComponentActivity() {
                 context: Context?,
                 intent: Intent?,
             ) {
-                when (intent?.action) {
-                    "org.kepocnhh.pinstaller.ACTION_INSTALL_COMPLETE" -> {
-                        render(root = root)
-                    }
-                }
+                logger.debug("on receive: ${intent?.action}")
+                render(root = root)
             }
         }
         setContentView(root)
         render(root = root)
-        val filter = IntentFilter("org.kepocnhh.pinstaller.ACTION_INSTALL_COMPLETE")
+        val filter = IntentFilter()
+        filter.addAction("org.kepocnhh.pinstaller.ACTION_INSTALL_COMPLETE")
+        filter.addAction("org.kepocnhh.pinstaller.ACTION_UNINSTALL_COMPLETE")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, RECEIVER_EXPORTED)
         } else {
