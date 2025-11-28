@@ -3,6 +3,7 @@ package org.kepocnhh.pinstaller
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 
@@ -18,5 +19,13 @@ internal class MainActivity : ComponentActivity() {
         if (dm.isDeviceOwnerApp(context.packageName)) {
             logger.debug("${name.shortClassName} device owner")
         }
+        val pm = context.packageManager
+        val packageName = "org.kepocnhh.foo.debug"
+        val info = try {
+            pm.getPackageInfo(packageName, 0)
+        } catch (error: PackageManager.NameNotFoundException) {
+            null
+        }
+        logger.debug("package: $packageName $info")
     }
 }

@@ -2,3 +2,4 @@
 !/src
 !.gitignore
 !build.gradle.kts
+/src/main/assets/*.apk
